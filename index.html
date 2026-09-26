@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control de freqüències</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+    background: #f4f4f5;
+    color: #1a1a1a;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { color: #666; font-size: 13px; margin: 0 0 16px; }
+  #status {
+    padding: 10px 14px; border-radius: 8px; font-size: 14px; margin-bottom: 14px;
+    background: #e4e4e7; color: #444;
+  }
+  #status.ok { background: #dcfce7; color: #166534; }
+  #status.err { background: #fee2e2; color: #991b1b; }
+  button {
+    font-size: 15px; padding: 10px 16px; border-radius: 8px; border: none;
+    cursor: pointer; font-weight: 600;
+  }
+  #connectBtn { width: 100%; background: #1a1a1a; color: #fff; padding: 14px; font-size: 16px; }
+  #connectBtn:disabled { background: #999; }
+  #panel { display: none; margin-top: 18px; }
+  .row {
+    display: flex; align-items: center; gap: 8px;
+    background: #fff; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+  }
+  .row .name { flex: 1.3; font-weight: 600; font-size: 14px; }
+  .row input {
+    flex: 1; font-size: 16px; padding: 8px 10px; border-radius: 6px;
+    border: 1px solid #ccc; min-width: 0;
+  }
+  .row button { background: #16a34a; color: #fff; padding: 8px 12px; }
+  .row.flash { background: #dcfce7; transition: background 0.2s; }
+  h2 { font-size: 15px; margin: 20px 0 8px; color: #444; }
+  .venueRow { display: flex; gap: 8px; }
+  .venueRow input {
+    flex: 1; font-size: 16px; padding: 10px 12px; border-radius: 8px; border: 1px solid #ccc;
+  }
+  .venueRow button { background: #2563eb; color: #fff; padding: 10px 16px; }
+  #refreshBtn { background: none; color: #2563eb; padding: 6px 0; font-weight: 600; font-size: 13px; }
+  footer { margin-top: 24px; font-size: 11.5px; color: #888; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<h1>Control de freqüències</h1>
+<p class="sub">Connexió directa per Bluetooth amb la pantalla — cap dada passa per internet.</p>
+
+<div id="status">Sense connectar</div>
+<button id="connectBtn" onclick="connect()">Connectar</button>
+
+<div id="panel">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+    <h2 style="margin:0;">Càmeres i backup</h2>
+    <button id="refreshBtn" onclick="loadCurrentValues()">↻ Actualitza</button>
+  </div>
+
+  <div class="row" id="rowWrap0"><span class="name" id="name0">—</span><input type="text" id="f0" inputmode="numeric"><button onclick="updateField(0)">OK</button></div>
+  <div class="row" id="rowWrap1"><span class="name" id="name1">—</span><input type="text" id="f1" inputmode="numeric"><button onclick="updateField(1)">OK</button></div>
+  <div class="row" id="rowWrap2"><span class="name" id="name2">—</span><input type="text" id="f2" inputmode="numeric"><button onclick="updateField(2)">OK</button></div>
+  <div class="row" id="rowWrap3"><span class="name" id="name3">—</span><input type="text" id="f3" inputmode="numeric"><button onclick="updateField(3)">OK</button></div>
+  <div class="row" id="rowWrap4"><span class="name" id="name4">—</span><input type="text" id="f4" inputmode="numeric"><button onclick="updateField(4)">OK</button></div>
+  <div class="row" id="rowWrap5"><span class="name">Backup 1</span><input type="text" id="f5" inputmode="numeric"><button onclick="updateField(5)">OK</button></div>
+  <div class="row" id="rowWrap6"><span class="name">Backup 2</span><input type="text" id="f6" inputmode="numeric"><button onclick="updateField(6)">OK</button></div>
+
+  <h2>Desar com a lloc</h2>
+  <div class="venueRow">
+    <input type="text" id="venueName" placeholder="p.ex. Buenos Aires Movistar Arena">
+    <button onclick="saveVenue()">Desar</button>
+  </div>
+</div>
+
+<footer>
+  Els noms de càmera (CAM2.Diego, etc.) es llegeixen del dispositiu i no es poden canviar des d'aquí — són fixos al maquinari. Només les freqüències són editables.<br><br>
+  Si no apareix el botó de connectar com a actiu: a iPhone, Safari no admet Web Bluetooth — cal l'app Bluefy. A Android, Chrome funciona directament.<br><br>
+  El dispositiu ha d'estar despert (prem qualsevol botó) perquè el Bluetooth estigui actiu.
+</footer>
+
+<script>
+const SERVICE_UUID    = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const CHAR_DATA_UUID   = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+const CHAR_VENUE_UUID  = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+
+let dataChar = null, venueChar = null;
+
+function setStatus(msg, cls) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = cls || '';
+}
+
+async function connect() {
+  if (!navigator.bluetooth) {
+    setStatus('Aquest navegador no admet Web Bluetooth (a iPhone, prova amb l\'app Bluefy).', 'err');
+    return;
+  }
+  const btn = document.getElementById('connectBtn');
+  btn.disabled = true;
+  try {
+    setStatus('Buscant el dispositiu...');
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ name: 'Frequencies' }],
+      optionalServices: [SERVICE_UUID]
+    });
+    setStatus('Connectant...');
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    dataChar = await service.getCharacteristic(CHAR_DATA_UUID);
+    venueChar = await service.getCharacteristic(CHAR_VENUE_UUID);
+
+    device.addEventListener('gattserverdisconnected', () => {
+      setStatus('Desconnectat', '');
+      document.getElementById('panel').style.display = 'none';
+      btn.disabled = false;
+    });
+
+    await loadCurrentValues();
+    setStatus('Connectat ✓', 'ok');
+    document.getElementById('panel').style.display = 'block';
+  } catch (e) {
+    setStatus('No s\'ha pogut connectar: ' + e.message, 'err');
+  }
+  btn.disabled = false;
+}
+
+async function loadCurrentValues() {
+  if (!dataChar) return;
+  const value = await dataChar.readValue();
+  const text = new TextDecoder().decode(value);
+  const lines = text.split('\n').filter(l => l.length > 0);
+  for (let i = 0; i < 5; i++) {
+    if (!lines[i]) continue;
+    const parts = lines[i].split(',');
+    document.getElementById('name' + i).textContent = parts[0] || ('Càmera ' + i);
+    document.getElementById('f' + i).value = parts[1] || '';
+  }
+  const backupLine = lines.find(l => l.startsWith('BACKUP,'));
+  if (backupLine) {
+    const parts = backupLine.substring(7).split(',');
+    document.getElementById('f5').value = parts[0] || '';
+    document.getElementById('f6').value = parts[1] || '';
+  }
+}
+
+async function updateField(idx) {
+  if (!dataChar) return;
+  const val = document.getElementById('f' + idx).value.trim();
+  if (!val) return;
+  try {
+    const payload = idx + ':' + val;
+    await dataChar.writeValue(new TextEncoder().encode(payload));
+    const row = document.getElementById('rowWrap' + idx);
+    row.classList.add('flash');
+    setTimeout(() => row.classList.remove('flash'), 400);
+  } catch (e) {
+    setStatus('Error escrivint: ' + e.message, 'err');
+  }
+}
+
+async function saveVenue() {
+  if (!venueChar) return;
+  const name = document.getElementById('venueName').value.trim();
+  if (!name) { alert('Posa un nom de lloc'); return; }
+  let payload = name + '\n';
+  for (let i = 0; i < 5; i++) payload += document.getElementById('f' + i).value.trim() + '\n';
+  payload += document.getElementById('f5').value.trim() + ',' + document.getElementById('f6').value.trim() + '\n';
+  try {
+    await venueChar.writeValue(new TextEncoder().encode(payload));
+    setStatus('Lloc desat: ' + name, 'ok');
+  } catch (e) {
+    setStatus('Error desant: ' + e.message, 'err');
+  }
+}
+</script>
+</body>
+</html>
