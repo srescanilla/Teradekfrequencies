@@ -5,216 +5,377 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Control de freqüències</title>
 <style>
-  :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, "Segoe UI", sans-serif;
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 16px;
-    background: #f4f4f5;
-    color: #1a1a1a;
+    max-width: 520px; margin: 0 auto; padding: 14px;
+    background: #f4f4f5; color: #1a1a1a;
   }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  p.sub { color: #666; font-size: 13px; margin: 0 0 16px; }
-  #status {
-    padding: 10px 14px; border-radius: 8px; font-size: 14px; margin-bottom: 14px;
-    background: #e4e4e7; color: #444;
-  }
+  h1 { font-size: 20px; margin: 0 0 10px; }
+  #status { padding: 10px 14px; border-radius: 8px; font-size: 14px; margin-bottom: 12px; background: #e4e4e7; color: #444; }
   #status.ok { background: #dcfce7; color: #166534; }
   #status.err { background: #fee2e2; color: #991b1b; }
-  button {
-    font-size: 15px; padding: 10px 16px; border-radius: 8px; border: none;
-    cursor: pointer; font-weight: 600;
-  }
+  button { font-size: 15px; padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
   #connectBtn { width: 100%; background: #1a1a1a; color: #fff; padding: 14px; font-size: 16px; }
   #connectBtn:disabled { background: #999; }
-  #panel { display: none; margin-top: 18px; }
-  .row {
-    display: flex; align-items: center; gap: 8px;
-    background: #fff; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
-  }
-  .row .name { flex: 1.3; font-weight: 600; font-size: 14px; }
-  .row input {
-    flex: 1; font-size: 16px; padding: 8px 10px; border-radius: 6px;
-    border: 1px solid #ccc; min-width: 0;
-  }
-  .row button { background: #16a34a; color: #fff; padding: 8px 12px; }
-  .row.flash { background: #dcfce7; transition: background 0.2s; }
+  #app { display: none; }
+
+  .tabs { display: flex; gap: 6px; margin: 14px 0 12px; }
+  .tabs button { flex: 1; background: #e4e4e7; color: #333; }
+  .tabs button.active { background: #1a1a1a; color: #fff; }
+  .tab { display: none; }
+  .tab.active { display: block; }
+
+  .card { background: #fff; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .camRow { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 6px; align-items: center; }
+  input[type=text] { font-size: 16px; padding: 8px 10px; border-radius: 6px; border: 1px solid #ccc; width: 100%; min-width: 0; }
+  .ok { background: #16a34a; color: #fff; padding: 8px 12px; }
+  .flash { background: #dcfce7 !important; transition: background .2s; }
+  h2 { font-size: 14px; color: #555; margin: 16px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+
   .jiga { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .jiga button { background: #fff; color: #1a1a1a; border: 2px solid #ccc; padding: 10px 4px; font-size: 13px; }
+  .jiga button { background: #fff; color: #1a1a1a; border: 2px solid #ccc; padding: 9px 2px; font-size: 12.5px; }
   .jiga button.on { border-color: #1a1a1a; background: #1a1a1a; color: #fff; }
-  h2 { font-size: 15px; margin: 20px 0 8px; color: #444; }
-  .venueRow { display: flex; gap: 8px; }
-  .venueRow input {
-    flex: 1; font-size: 16px; padding: 10px 12px; border-radius: 8px; border: 1px solid #ccc;
-  }
-  .venueRow button { background: #2563eb; color: #fff; padding: 10px 16px; }
-  #refreshBtn { background: none; color: #2563eb; padding: 6px 0; font-weight: 600; font-size: 13px; }
-  footer { margin-top: 24px; font-size: 11.5px; color: #888; line-height: 1.5; }
+
+  .venue { display: flex; align-items: center; gap: 6px; }
+  .venue .vname { flex: 1; font-weight: 600; font-size: 14px; }
+  .venue .current { font-size: 11px; color: #16a34a; display: block; font-weight: 600; }
+  .load { background: #2563eb; color: #fff; padding: 8px 10px; font-size: 13px; }
+  .edit { background: #e4e4e7; color: #1a1a1a; padding: 8px 10px; font-size: 13px; }
+  .del  { background: #fee2e2; color: #991b1b; padding: 8px 10px; font-size: 13px; }
+  .wide { width: 100%; margin-top: 6px; }
+  .primary { background: #1a1a1a; color: #fff; }
+  .secondary { background: #e4e4e7; color: #1a1a1a; }
+
+  #editor { display: none; }
+  .settingRow { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .toggle { background: #e4e4e7; color: #1a1a1a; min-width: 130px; }
+  footer { margin-top: 22px; font-size: 11.5px; color: #888; line-height: 1.5; }
 </style>
 </head>
 <body>
 
 <h1>Control de freqüències</h1>
-<p class="sub">Connexió directa per Bluetooth amb la pantalla — cap dada passa per internet.</p>
-
 <div id="status">Sense connectar</div>
 <button id="connectBtn" onclick="connect()">Connectar</button>
 
-<div id="panel">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
-    <h2 style="margin:0;">Càmeres i backup</h2>
-    <button id="refreshBtn" onclick="loadCurrentValues()">↻ Actualitza</button>
+<div id="app">
+  <div class="tabs">
+    <button class="active" data-tab="tNow" onclick="showTab(this)">Pantalla</button>
+    <button data-tab="tVenues" onclick="showTab(this)">Llocs</button>
+    <button data-tab="tSettings" onclick="showTab(this)">Settings</button>
   </div>
 
-  <div class="row" id="rowWrap0"><span class="name" id="name0">—</span><input type="text" id="f0" inputmode="numeric"><button onclick="updateField(0)">OK</button></div>
-  <div class="row" id="rowWrap1"><span class="name" id="name1">—</span><input type="text" id="f1" inputmode="numeric"><button onclick="updateField(1)">OK</button></div>
-  <div class="row" id="rowWrap2"><span class="name" id="name2">—</span><input type="text" id="f2" inputmode="numeric"><button onclick="updateField(2)">OK</button></div>
-  <div class="row" id="rowWrap3"><span class="name" id="name3">—</span><input type="text" id="f3" inputmode="numeric"><button onclick="updateField(3)">OK</button></div>
-  <div class="row" id="rowWrap4"><span class="name" id="name4">—</span><input type="text" id="f4" inputmode="numeric"><button onclick="updateField(4)">OK</button></div>
-  <div class="row" id="rowWrap5"><span class="name">Backup 1</span><input type="text" id="f5" inputmode="numeric"><button onclick="updateField(5)">OK</button></div>
-  <div class="row" id="rowWrap6"><span class="name">Backup 2</span><input type="text" id="f6" inputmode="numeric"><button onclick="updateField(6)">OK</button></div>
+  <!-- ===== PANTALLA: el que es veu ara al dispositiu ===== -->
+  <div class="tab active" id="tNow">
+    <h2>Càmeres (nom · freqüència)</h2>
+    <div id="camRows"></div>
 
-  <h2>JIGA-Cam — canals en ús (toca per marcar/desmarcar)</h2>
-  <div class="jiga" id="jiga"></div>
+    <h2>Backup</h2>
+    <div class="card camRow" id="bk0"><span>Backup 1</span><input type="text" id="b0" inputmode="numeric"><button class="ok" onclick="sendFreq(5,'b0','bk0')">OK</button></div>
+    <div class="card camRow" id="bk1"><span>Backup 2</span><input type="text" id="b1" inputmode="numeric"><button class="ok" onclick="sendFreq(6,'b1','bk1')">OK</button></div>
 
-  <h2>Desar com a lloc</h2>
-  <div class="venueRow">
-    <input type="text" id="venueName" placeholder="p.ex. Buenos Aires Movistar Arena">
-    <button onclick="saveVenue()">Desar</button>
+    <h2>JIGA-Cam — canals en ús</h2>
+    <div class="jiga" id="jiga"></div>
+
+    <button class="wide secondary" onclick="readGrid()">↻ Tornar a llegir del dispositiu</button>
+  </div>
+
+  <!-- ===== LLOCS ===== -->
+  <div class="tab" id="tVenues">
+    <div id="venueList"></div>
+    <button class="wide secondary" onclick="loadVenueList()">↻ Actualitzar llista</button>
+    <button class="wide primary" onclick="newFromCurrent()">+ Desar la pantalla actual com a lloc nou</button>
+
+    <div id="editor">
+      <h2 id="edTitle">Editar lloc</h2>
+      <div class="card"><input type="text" id="edName" placeholder="Nom del lloc"></div>
+      <div id="edCams"></div>
+      <div class="card camRow"><span>Backup 1</span><input type="text" id="edB0" inputmode="numeric"><span></span></div>
+      <div class="card camRow"><span>Backup 2</span><input type="text" id="edB1" inputmode="numeric"><span></span></div>
+      <h2>JIGA-Cam en aquest lloc</h2>
+      <div class="jiga" id="edJiga"></div>
+      <button class="wide primary" onclick="saveEditor(false)">Desar el lloc</button>
+      <button class="wide load" onclick="saveEditor(true)">Desar i posar-lo a la pantalla</button>
+      <button class="wide secondary" onclick="closeEditor()">Cancel·lar</button>
+    </div>
+  </div>
+
+  <!-- ===== SETTINGS ===== -->
+  <div class="tab" id="tSettings">
+    <div class="card settingRow">
+      <span>Pantalla</span>
+      <button class="toggle" id="invBtn" onclick="toggleInv()">Blanc/Negre</button>
+    </div>
+    <h2>Nom del Bluetooth</h2>
+    <div class="card">
+      <input type="text" id="btName" maxlength="20" placeholder="Frequencies">
+      <button class="wide primary" onclick="saveBtName()">Canviar nom (reinicia el dispositiu)</button>
+    </div>
   </div>
 </div>
 
 <footer>
-  Els noms de càmera (CAM2.Diego, etc.) es llegeixen del dispositiu i no es poden canviar des d'aquí — són fixos al maquinari. Només les freqüències són editables.<br><br>
-  Si no apareix el botó de connectar com a actiu: a iPhone, Safari no admet Web Bluetooth — cal l'app Bluefy. A Android, Chrome funciona directament.<br><br>
-  El dispositiu ha d'estar despert perquè el Bluetooth estigui actiu: a dalt a la dreta ha de posar <b>BT</b>. Si posa <b>zz</b> està adormit — prem qualsevol botó i espera que acabi el refresc.
+  Accents i ç es treuen automàticament en enviar: la lletra de la pantalla només té caràcters bàsics.<br><br>
+  A iPhone cal l'app Bluefy (Safari no admet Web Bluetooth). La pàgina ha d'estar servida per HTTPS (GitHub Pages).<br><br>
+  El dispositiu ha de posar <b>BT</b> a dalt a la dreta per poder connectar. Si posa <b>zz</b>, prem un botó i espera el refresc.
 </footer>
 
 <script>
-const SERVICE_UUID    = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-const CHAR_DATA_UUID   = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
-const CHAR_VENUE_UUID  = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
-
-let dataChar = null, venueChar = null;
+const SERVICE_UUID    = '7b1e0001-3f2a-4c8d-9b6e-5a2f8c1d4e70';
+const CHAR_DATA_UUID  = '7b1e0002-3f2a-4c8d-9b6e-5a2f8c1d4e70';
+const CHAR_VENUE_UUID = '7b1e0003-3f2a-4c8d-9b6e-5a2f8c1d4e70';
 const JIGA_CH  = ['CH1','CH2','CH3','CH4','CH5','CHP','CH6','CH7'];
 const JIGA_MHZ = ['5650','5685','5725','5760','5795','5829','5868','5904'];
-let jigaMask = 3;
 
-function renderJiga() {
-  const box = document.getElementById('jiga');
-  box.innerHTML = '';
-  JIGA_CH.forEach((ch, i) => {
-    const b = document.createElement('button');
-    b.textContent = ch + ' ' + JIGA_MHZ[i];
-    if ((jigaMask >> i) & 1) b.classList.add('on');
-    b.onclick = () => toggleJiga(i);
-    box.appendChild(b);
-  });
+let dataChar = null, venueChar = null;
+let jigaMask = 3, invert = false, currentVenueName = '';
+let venues = [];            // [{name, cams:[{name,freq}], b:[b1,b2], j:mask}]
+let edIdx = -1, edMask = 3;
+
+const enc = s => new TextEncoder().encode(s);
+const dec = v => new TextDecoder().decode(v);
+// La pantalla només té ASCII: fora accents, ç, ñ...
+const ascii = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '').trim();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function setStatus(msg, cls) { const el = document.getElementById('status'); el.textContent = msg; el.className = cls || ''; }
+function flash(id) { const el = document.getElementById(id); if (!el) return; el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 400); }
+function showTab(btn) {
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b === btn));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === btn.dataset.tab));
+  if (btn.dataset.tab === 'tVenues' && venues.length === 0) loadVenueList();
 }
 
-async function toggleJiga(i) {
-  if (!dataChar) return;
-  const on = !((jigaMask >> i) & 1);
-  try {
-    await dataChar.writeValue(new TextEncoder().encode((7 + i) + ':' + (on ? 1 : 0)));
-    jigaMask = on ? (jigaMask | (1 << i)) : (jigaMask & ~(1 << i));
-    renderJiga();
-  } catch (e) { setStatus('Error escrivint: ' + e.message, 'err'); }
-}
-
-function setStatus(msg, cls) {
-  const el = document.getElementById('status');
-  el.textContent = msg;
-  el.className = cls || '';
-}
-
+// ---------- Connexió ----------
 async function connect() {
-  if (!navigator.bluetooth) {
-    setStatus('Aquest navegador no admet Web Bluetooth (a iPhone, prova amb l\'app Bluefy).', 'err');
-    return;
-  }
+  if (!navigator.bluetooth) { setStatus("Aquest navegador no admet Web Bluetooth (a iPhone, fes servir Bluefy).", 'err'); return; }
   const btn = document.getElementById('connectBtn');
   btn.disabled = true;
   try {
     setStatus('Buscant el dispositiu...');
-    const device = await navigator.bluetooth.requestDevice({
-      // Per servei O per nom: l'iPhone/Bluefy de vegades guarda un nom antic a la memòria cau
-      filters: [{ services: [SERVICE_UUID] }, { name: 'Frequencies' }],
-      optionalServices: [SERVICE_UUID]
-    });
+    const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }] });
     setStatus('Connectant...');
     const server = await device.gatt.connect();
     const service = await server.getPrimaryService(SERVICE_UUID);
     dataChar = await service.getCharacteristic(CHAR_DATA_UUID);
     venueChar = await service.getCharacteristic(CHAR_VENUE_UUID);
-
     device.addEventListener('gattserverdisconnected', () => {
       setStatus('Desconnectat', '');
-      document.getElementById('panel').style.display = 'none';
-      btn.disabled = false;
+      document.getElementById('app').style.display = 'none';
+      btn.style.display = 'block'; btn.disabled = false;
     });
-
-    await loadCurrentValues();
+    await readGrid();
     setStatus('Connectat ✓', 'ok');
-    document.getElementById('panel').style.display = 'block';
+    document.getElementById('app').style.display = 'block';
+    btn.style.display = 'none';
   } catch (e) {
-    setStatus('No s\'ha pogut connectar: ' + e.message, 'err');
+    setStatus("No s'ha pogut connectar: " + e.message, 'err');
+    btn.disabled = false;
   }
-  btn.disabled = false;
 }
 
-async function loadCurrentValues() {
-  if (!dataChar) return;
-  const value = await dataChar.readValue();
-  const text = new TextDecoder().decode(value);
-  const lines = text.split('\n').filter(l => l.length > 0);
+// ---------- Pestanya Pantalla ----------
+async function readGrid() {
+  const text = dec(await dataChar.readValue());
+  const lines = text.split('\n').filter(l => l.length);
+  const rows = document.getElementById('camRows');
+  rows.innerHTML = '';
   for (let i = 0; i < 5; i++) {
-    if (!lines[i]) continue;
-    const parts = lines[i].split(',');
-    document.getElementById('name' + i).textContent = parts[0] || ('Càmera ' + i);
-    document.getElementById('f' + i).value = parts[1] || '';
+    const [name, freq] = (lines[i] || ',').split(',');
+    const row = document.createElement('div');
+    row.className = 'card camRow'; row.id = 'cam' + i;
+    row.innerHTML = `<input type="text" id="n${i}"><input type="text" id="f${i}" inputmode="numeric"><button class="ok">OK</button>`;
+    rows.appendChild(row);
+    document.getElementById('n' + i).value = name || '';
+    document.getElementById('f' + i).value = freq || '';
+    row.querySelector('button').onclick = () => sendCam(i);
   }
-  const backupLine = lines.find(l => l.startsWith('BACKUP,'));
-  if (backupLine) {
-    const parts = backupLine.substring(7).split(',');
-    document.getElementById('f5').value = parts[0] || '';
-    document.getElementById('f6').value = parts[1] || '';
+  for (const l of lines) {
+    if (l.startsWith('BACKUP,')) { const p = l.substring(7).split(','); b0.value = p[0] || ''; b1.value = p[1] || ''; }
+    if (l.startsWith('JIGA,')) jigaMask = parseInt(l.substring(5), 10) || 0;
+    if (l.startsWith('INV,')) invert = l.substring(4) === '1';
+    if (l.startsWith('BT,')) document.getElementById('btName').value = l.substring(3);
   }
-  const jigaLine = lines.find(l => l.startsWith('JIGA,'));
-  if (jigaLine) jigaMask = parseInt(jigaLine.substring(5), 10) || 0;
-  renderJiga();
+  renderJiga('jiga', jigaMask, toggleJiga);
+  renderInv();
 }
 
-async function updateField(idx) {
-  if (!dataChar) return;
-  const val = document.getElementById('f' + idx).value.trim();
-  if (!val) return;
+async function write(ch, s) { await ch.writeValue(enc(s)); }
+
+async function sendCam(i) {
+  const n = ascii(document.getElementById('n' + i).value);
+  const f = document.getElementById('f' + i).value.trim();
   try {
-    const payload = idx + ':' + val;
-    await dataChar.writeValue(new TextEncoder().encode(payload));
-    const row = document.getElementById('rowWrap' + idx);
-    row.classList.add('flash');
-    setTimeout(() => row.classList.remove('flash'), 400);
-  } catch (e) {
-    setStatus('Error escrivint: ' + e.message, 'err');
-  }
+    if (n) await write(dataChar, 'N' + i + ':' + n);
+    if (f) await write(dataChar, i + ':' + f);
+    document.getElementById('n' + i).value = n;
+    flash('cam' + i);
+  } catch (e) { setStatus('Error escrivint: ' + e.message, 'err'); }
 }
 
-async function saveVenue() {
-  if (!venueChar) return;
-  const name = document.getElementById('venueName').value.trim();
-  if (!name) { alert('Posa un nom de lloc'); return; }
-  let payload = name + '\n';
-  for (let i = 0; i < 5; i++) payload += document.getElementById('f' + i).value.trim() + '\n';
-  payload += document.getElementById('f5').value.trim() + ',' + document.getElementById('f6').value.trim() + '\n';
+async function sendFreq(idx, inputId, rowId) {
+  const f = document.getElementById(inputId).value.trim();
+  if (!f) return;
+  try { await write(dataChar, idx + ':' + f); flash(rowId); }
+  catch (e) { setStatus('Error escrivint: ' + e.message, 'err'); }
+}
+
+function renderJiga(containerId, mask, onToggle) {
+  const box = document.getElementById(containerId);
+  box.innerHTML = '';
+  JIGA_CH.forEach((ch, i) => {
+    const b = document.createElement('button');
+    b.textContent = ch + ' ' + JIGA_MHZ[i];
+    if ((mask >> i) & 1) b.classList.add('on');
+    b.onclick = () => onToggle(i);
+    box.appendChild(b);
+  });
+}
+
+async function toggleJiga(i) {
+  const on = !((jigaMask >> i) & 1);
   try {
-    await venueChar.writeValue(new TextEncoder().encode(payload));
-    setStatus('Lloc desat: ' + name, 'ok');
-  } catch (e) {
-    setStatus('Error desant: ' + e.message, 'err');
-  }
+    await write(dataChar, (7 + i) + ':' + (on ? 1 : 0));
+    jigaMask = on ? (jigaMask | (1 << i)) : (jigaMask & ~(1 << i));
+    renderJiga('jiga', jigaMask, toggleJiga);
+  } catch (e) { setStatus('Error escrivint: ' + e.message, 'err'); }
+}
+
+// ---------- Pestanya Llocs ----------
+function parseVenue(text) {
+  const l = text.split('\n');
+  const v = { name: l[0] || '', cams: [], b: ['', ''], j: 3 };
+  for (let c = 0; c < 5; c++) { const [n, f] = (l[1 + c] || ',').split(','); v.cams.push({ name: n || '', freq: f || '' }); }
+  const bk = (l[6] || ',').split(','); v.b = [bk[0] || '', bk[1] || ''];
+  if ((l[7] || '').startsWith('J:')) v.j = parseInt(l[7].substring(2), 10) || 0;
+  return v;
+}
+
+async function loadVenueList() {
+  try {
+    setStatus('Llegint llocs...');
+    await write(venueChar, 'COUNT');
+    const n = parseInt(dec(await venueChar.readValue()), 10) || 0;
+    venues = [];
+    for (let i = 0; i < n; i++) {
+      await write(venueChar, 'GET:' + i);
+      venues.push(parseVenue(dec(await venueChar.readValue())));
+    }
+    renderVenueList();
+    setStatus('Connectat ✓ — ' + n + ' llocs', 'ok');
+  } catch (e) { setStatus('Error llegint llocs: ' + e.message, 'err'); }
+}
+
+function renderVenueList() {
+  const box = document.getElementById('venueList');
+  box.innerHTML = '';
+  if (!venues.length) { box.innerHTML = '<div class="card">Cap lloc desat.</div>'; return; }
+  venues.forEach((v, i) => {
+    const row = document.createElement('div');
+    row.className = 'card venue';
+    row.innerHTML = `<span class="vname"></span>
+      <button class="load">Posar</button><button class="edit">Editar</button><button class="del">✕</button>`;
+    row.querySelector('.vname').textContent = v.name;
+    row.querySelector('.load').onclick = () => loadVenue(i);
+    row.querySelector('.edit').onclick = () => openEditor(i);
+    row.querySelector('.del').onclick = () => deleteVenue(i);
+    box.appendChild(row);
+  });
+}
+
+async function loadVenue(i) {
+  try {
+    await write(venueChar, 'LOAD:' + i);
+    setStatus('Carregant "' + venues[i].name + '" a la pantalla...', 'ok');
+    await sleep(600);           // el dispositiu l'aplica des del loop
+    await readGrid();
+    setStatus('"' + venues[i].name + '" a la pantalla ✓', 'ok');
+  } catch (e) { setStatus('Error: ' + e.message, 'err'); }
+}
+
+async function deleteVenue(i) {
+  if (!confirm('Esborrar "' + venues[i].name + '" del dispositiu?')) return;
+  try {
+    await write(venueChar, 'DEL:' + i);
+    await sleep(400);
+    await loadVenueList();
+  } catch (e) { setStatus('Error: ' + e.message, 'err'); }
+}
+
+function openEditor(i) {
+  edIdx = i;
+  const v = i >= 0 ? venues[i] : currentAsVenue();
+  document.getElementById('edTitle').textContent = i >= 0 ? 'Editar lloc' : 'Lloc nou';
+  document.getElementById('edName').value = i >= 0 ? v.name : '';
+  const box = document.getElementById('edCams');
+  box.innerHTML = '';
+  v.cams.forEach((c, k) => {
+    const row = document.createElement('div');
+    row.className = 'card camRow';
+    row.innerHTML = `<input type="text" id="edN${k}"><input type="text" id="edF${k}" inputmode="numeric"><span></span>`;
+    box.appendChild(row);
+    document.getElementById('edN' + k).value = c.name;
+    document.getElementById('edF' + k).value = c.freq;
+  });
+  document.getElementById('edB0').value = v.b[0];
+  document.getElementById('edB1').value = v.b[1];
+  edMask = v.j;
+  renderJiga('edJiga', edMask, toggleEdJiga);
+  document.getElementById('editor').style.display = 'block';
+  document.getElementById('editor').scrollIntoView({ behavior: 'smooth' });
+}
+function toggleEdJiga(k) { edMask ^= (1 << k); renderJiga('edJiga', edMask, toggleEdJiga); }
+function closeEditor() { document.getElementById('editor').style.display = 'none'; }
+
+function currentAsVenue() {
+  const v = { name: '', cams: [], b: [b0.value.trim(), b1.value.trim()], j: jigaMask };
+  for (let k = 0; k < 5; k++) v.cams.push({ name: document.getElementById('n' + k).value, freq: document.getElementById('f' + k).value });
+  return v;
+}
+function newFromCurrent() { openEditor(-1); }
+
+async function saveEditor(andLoad) {
+  const name = ascii(document.getElementById('edName').value);
+  if (!name) { alert('Posa un nom al lloc'); return; }
+  try {
+    setStatus('Desant...');
+    await write(venueChar, 'VB:' + edIdx);
+    await write(venueChar, 'VN:' + name);
+    for (let k = 0; k < 5; k++) {
+      const n = ascii(document.getElementById('edN' + k).value) || ('CAM' + (k + 2));
+      const f = document.getElementById('edF' + k).value.trim() || '----';
+      await write(venueChar, 'VC' + k + ':' + n + ',' + f);
+    }
+    const bk0 = document.getElementById('edB0').value.trim() || '----';
+    const bk1 = document.getElementById('edB1').value.trim() || '----';
+    await write(venueChar, 'VK:' + bk0 + ',' + bk1);
+    await write(venueChar, 'VJ:' + edMask);
+    await write(venueChar, 'VE');
+    const res = dec(await venueChar.readValue());
+    if (!res.startsWith('OK')) { setStatus('El dispositiu ha respost: ' + res, 'err'); return; }
+    const savedIdx = parseInt(res.substring(3), 10);
+    closeEditor();
+    await loadVenueList();
+    if (andLoad && !isNaN(savedIdx)) await loadVenue(savedIdx);
+    else setStatus('Lloc "' + name + '" desat ✓', 'ok');
+  } catch (e) { setStatus('Error desant: ' + e.message, 'err'); }
+}
+
+// ---------- Pestanya Settings ----------
+function renderInv() { document.getElementById('invBtn').textContent = invert ? 'Negre/Blanc' : 'Blanc/Negre'; }
+async function toggleInv() {
+  try { invert = !invert; await write(dataChar, 'INV:' + (invert ? 1 : 0)); renderInv(); }
+  catch (e) { setStatus('Error: ' + e.message, 'err'); }
+}
+async function saveBtName() {
+  const n = ascii(document.getElementById('btName').value).substring(0, 20);
+  if (!n) return;
+  if (!confirm('El dispositiu es reiniciarà amb el nom "' + n + '" i et caldrà tornar a connectar. Continuar?')) return;
+  try {
+    await write(dataChar, 'BTNAME:' + n);
+    setStatus('Reiniciant amb el nom "' + n + '"... torna a connectar en uns segons.', 'ok');
+  } catch (e) { setStatus('Enviat. Reiniciant...', 'ok'); }
 }
 </script>
 </body>
