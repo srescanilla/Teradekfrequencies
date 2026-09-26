@@ -89,7 +89,7 @@
 <footer>
   Els noms de càmera (CAM2.Diego, etc.) es llegeixen del dispositiu i no es poden canviar des d'aquí — són fixos al maquinari. Només les freqüències són editables.<br><br>
   Si no apareix el botó de connectar com a actiu: a iPhone, Safari no admet Web Bluetooth — cal l'app Bluefy. A Android, Chrome funciona directament.<br><br>
-  El dispositiu ha d'estar despert (prem qualsevol botó) perquè el Bluetooth estigui actiu.
+  El dispositiu ha d'estar despert perquè el Bluetooth estigui actiu: a dalt a la dreta ha de posar <b>BT</b>. Si posa <b>zz</b> està adormit — prem qualsevol botó i espera que acabi el refresc.
 </footer>
 
 <script>
@@ -140,7 +140,8 @@ async function connect() {
   try {
     setStatus('Buscant el dispositiu...');
     const device = await navigator.bluetooth.requestDevice({
-      filters: [{ name: 'Frequencies' }],
+      // Per servei O per nom: l'iPhone/Bluefy de vegades guarda un nom antic a la memòria cau
+      filters: [{ services: [SERVICE_UUID] }, { name: 'Frequencies' }],
       optionalServices: [SERVICE_UUID]
     });
     setStatus('Connectant...');
