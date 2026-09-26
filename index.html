@@ -41,6 +41,9 @@
   }
   .row button { background: #16a34a; color: #fff; padding: 8px 12px; }
   .row.flash { background: #dcfce7; transition: background 0.2s; }
+  .jiga { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .jiga button { background: #fff; color: #1a1a1a; border: 2px solid #ccc; padding: 10px 4px; font-size: 13px; }
+  .jiga button.on { border-color: #1a1a1a; background: #1a1a1a; color: #fff; }
   h2 { font-size: 15px; margin: 20px 0 8px; color: #444; }
   .venueRow { display: flex; gap: 8px; }
   .venueRow input {
@@ -73,6 +76,9 @@
   <div class="row" id="rowWrap5"><span class="name">Backup 1</span><input type="text" id="f5" inputmode="numeric"><button onclick="updateField(5)">OK</button></div>
   <div class="row" id="rowWrap6"><span class="name">Backup 2</span><input type="text" id="f6" inputmode="numeric"><button onclick="updateField(6)">OK</button></div>
 
+  <h2>JIGA-Cam — canals en ús (toca per marcar/desmarcar)</h2>
+  <div class="jiga" id="jiga"></div>
+
   <h2>Desar com a lloc</h2>
   <div class="venueRow">
     <input type="text" id="venueName" placeholder="p.ex. Buenos Aires Movistar Arena">
@@ -92,6 +98,31 @@ const CHAR_DATA_UUID   = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 const CHAR_VENUE_UUID  = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 
 let dataChar = null, venueChar = null;
+const JIGA_CH  = ['CH1','CH2','CH3','CH4','CH5','CHP','CH6','CH7'];
+const JIGA_MHZ = ['5650','5685','5725','5760','5795','5829','5868','5904'];
+let jigaMask = 3;
+
+function renderJiga() {
+  const box = document.getElementById('jiga');
+  box.innerHTML = '';
+  JIGA_CH.forEach((ch, i) => {
+    const b = document.createElement('button');
+    b.textContent = ch + ' ' + JIGA_MHZ[i];
+    if ((jigaMask >> i) & 1) b.classList.add('on');
+    b.onclick = () => toggleJiga(i);
+    box.appendChild(b);
+  });
+}
+
+async function toggleJiga(i) {
+  if (!dataChar) return;
+  const on = !((jigaMask >> i) & 1);
+  try {
+    await dataChar.writeValue(new TextEncoder().encode((7 + i) + ':' + (on ? 1 : 0)));
+    jigaMask = on ? (jigaMask | (1 << i)) : (jigaMask & ~(1 << i));
+    renderJiga();
+  } catch (e) { setStatus('Error escrivint: ' + e.message, 'err'); }
+}
 
 function setStatus(msg, cls) {
   const el = document.getElementById('status');
@@ -150,6 +181,9 @@ async function loadCurrentValues() {
     document.getElementById('f5').value = parts[0] || '';
     document.getElementById('f6').value = parts[1] || '';
   }
+  const jigaLine = lines.find(l => l.startsWith('JIGA,'));
+  if (jigaLine) jigaMask = parseInt(jigaLine.substring(5), 10) || 0;
+  renderJiga();
 }
 
 async function updateField(idx) {
