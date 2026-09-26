@@ -68,6 +68,12 @@
 
   <!-- ===== PANTALLA: el que es veu ara al dispositiu ===== -->
   <div class="tab active" id="tNow">
+    <div class="card" id="curVenue" style="font-size:14px;"><b>Lloc:</b> <span id="curVenueName">—</span></div>
+    <div style="display:flex; gap:6px;">
+      <button class="primary" style="flex:1" id="saveBtn" onclick="saveCurrent()">SAVE</button>
+      <button class="secondary" style="flex:1" onclick="saveAs()">SAVE AS…</button>
+    </div>
+
     <h2>Càmeres (nom · freqüència)</h2>
     <div id="camRows"></div>
 
@@ -129,7 +135,7 @@ const JIGA_CH  = ['CH1','CH2','CH3','CH4','CH5','CHP','CH6','CH7'];
 const JIGA_MHZ = ['5650','5685','5725','5760','5795','5829','5868','5904'];
 
 let dataChar = null, venueChar = null;
-let jigaMask = 3, invert = false, currentVenueName = '';
+let jigaMask = 3, invert = false, currentVenueName = '', currentVenueIdx = -1;
 let venues = [];            // [{name, cams:[{name,freq}], b:[b1,b2], j:mask}]
 let edIdx = -1, edMask = 3;
 
@@ -196,7 +202,15 @@ async function readGrid() {
     if (l.startsWith('JIGA,')) jigaMask = parseInt(l.substring(5), 10) || 0;
     if (l.startsWith('INV,')) invert = l.substring(4) === '1';
     if (l.startsWith('BT,')) document.getElementById('btName').value = l.substring(3);
+    if (l.startsWith('LLOC,')) {
+      const rest = l.substring(5); const c = rest.indexOf(',');
+      currentVenueIdx = parseInt(rest.substring(0, c), 10);
+      currentVenueName = rest.substring(c + 1);
+    }
   }
+  document.getElementById('curVenueName').textContent = currentVenueIdx >= 0 ? currentVenueName : '(cap lloc carregat)';
+  document.getElementById('saveBtn').disabled = currentVenueIdx < 0;
+  document.getElementById('saveBtn').style.opacity = currentVenueIdx < 0 ? .4 : 1;
   renderJiga('jiga', jigaMask, toggleJiga);
   renderInv();
 }
@@ -240,6 +254,63 @@ async function toggleJiga(i) {
     jigaMask = on ? (jigaMask | (1 << i)) : (jigaMask & ~(1 << i));
     renderJiga('jiga', jigaMask, toggleJiga);
   } catch (e) { setStatus('Error escrivint: ' + e.message, 'err'); }
+}
+
+// ---------- SAVE / SAVE AS ----------
+// Primer envia TOT el que hi ha escrit als camps (encara que no hagis prémer
+// OK a cada fila), perquè es desi exactament el que veus.
+async function pushAllFields() {
+  for (let i = 0; i < 5; i++) {
+    const n = ascii(document.getElementById('n' + i).value);
+    const f = document.getElementById('f' + i).value.trim();
+    if (n) await write(dataChar, 'N' + i + ':' + n);
+    if (f) await write(dataChar, i + ':' + f);
+  }
+  if (b0.value.trim()) await write(dataChar, '5:' + b0.value.trim());
+  if (b1.value.trim()) await write(dataChar, '6:' + b1.value.trim());
+}
+
+async function saveCurrent() {
+  if (currentVenueIdx < 0) { alert('No hi ha cap lloc carregat: fes servir SAVE AS.'); return; }
+  try {
+    setStatus('Desant a "' + currentVenueName + '"...');
+    await pushAllFields();
+    await write(venueChar, 'SAVECUR');
+    const res = dec(await venueChar.readValue());
+    if (!res.startsWith('OK')) { setStatus('El dispositiu ha respost: ' + res, 'err'); return; }
+    venues = [];                         // la llista s'haurà de tornar a llegir
+    setStatus('Desat a "' + currentVenueName + '" ✓', 'ok');
+  } catch (e) { setStatus('Error desant: ' + e.message, 'err'); }
+}
+
+async function saveAs() {
+  const raw = prompt('Nom del lloc nou:', '');
+  if (raw === null) return;
+  const name = ascii(raw);
+  if (!name) { alert('Posa un nom'); return; }
+  try {
+    // Si ja existeix un lloc amb aquest nom, avisa abans de sobreescriure'l
+    await write(venueChar, 'COUNT');
+    const n = parseInt(dec(await venueChar.readValue()), 10) || 0;
+    for (let i = 0; i < n; i++) {
+      await write(venueChar, 'GET:' + i);
+      if (dec(await venueChar.readValue()).split('\n')[0] === name &&
+          !confirm('Ja existeix "' + name + '". Vols sobreescriure\'l?')) return;
+    }
+    setStatus('Desant "' + name + '"...');
+    await pushAllFields();
+    await write(venueChar, 'VB:-1');     // parteix del que hi ha ara a la pantalla
+    await write(venueChar, 'VN:' + name);
+    await write(venueChar, 'VE');
+    const res = dec(await venueChar.readValue());
+    if (!res.startsWith('OK')) { setStatus('El dispositiu ha respost: ' + res, 'err'); return; }
+    const idx = parseInt(res.substring(3), 10);
+    await write(venueChar, 'LOAD:' + idx); // passa a ser el lloc actual
+    await sleep(600);
+    venues = [];
+    await readGrid();
+    setStatus('Desat com a "' + name + '" ✓', 'ok');
+  } catch (e) { setStatus('Error desant: ' + e.message, 'err'); }
 }
 
 // ---------- Pestanya Llocs ----------
