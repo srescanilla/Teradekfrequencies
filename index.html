@@ -18,7 +18,16 @@
   button { font-size: 15px; padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
   #connectBtn { width: 100%; background: #1a1a1a; color: #fff; padding: 14px; font-size: 16px; }
   #connectBtn:disabled { background: #999; }
-  #app { display: none; }
+  body:not(.connected) .conn { display: none !important; }
+  body.connected .noconn { display: none !important; }
+  .noconn { color: #666; font-size: 14px; }
+  .hint { font-size: 12.5px; color: #666; margin: 0 0 10px; line-height: 1.45; }
+  .btnlike { display: flex; align-items: center; justify-content: center; font-size: 15px; padding: 10px 14px;
+             border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .send { background: #16a34a; color: #fff; padding: 8px 10px; font-size: 13px; }
+  .dup  { background: #e4e4e7; color: #1a1a1a; padding: 8px 10px; font-size: 13px; }
+  #libEditor { display: none; }
+  .vsub { display: block; font-size: 11.5px; color: #777; font-weight: 400; margin-top: 2px; }
 
   .tabs { display: flex; gap: 6px; margin: 14px 0 12px; }
   .tabs button { flex: 1; background: #e4e4e7; color: #333; }
@@ -61,13 +70,16 @@
 
 <div id="app">
   <div class="tabs">
-    <button class="active" data-tab="tNow" onclick="showTab(this)">Pantalla</button>
-    <button data-tab="tVenues" onclick="showTab(this)">Llocs</button>
+    <button data-tab="tNow" onclick="showTab(this)">Pantalla</button>
+    <button class="active" data-tab="tLib" onclick="showTab(this)">Biblioteca</button>
+    <button data-tab="tVenues" onclick="showTab(this)">Dispositiu</button>
     <button data-tab="tSettings" onclick="showTab(this)">Settings</button>
   </div>
 
   <!-- ===== PANTALLA: el que es veu ara al dispositiu ===== -->
-  <div class="tab active" id="tNow">
+  <div class="tab" id="tNow">
+    <div class="card noconn">Connecta't a la pantalla per veure i canviar el que mostra ara.</div>
+    <div class="conn">
     <div class="card" id="curVenue" style="font-size:14px;"><b>Lloc:</b> <span id="curVenueName">—</span></div>
     <div style="display:flex; gap:6px;">
       <button class="primary" style="flex:1" id="saveBtn" onclick="saveCurrent()">SAVE</button>
@@ -85,10 +97,42 @@
     <div class="jiga" id="jiga"></div>
 
     <button class="wide secondary" onclick="readGrid()">↻ Tornar a llegir del dispositiu</button>
+    </div>
+  </div>
+
+  <!-- ===== BIBLIOTECA: llocs desats en aquest navegador, sense connexió ===== -->
+  <div class="tab active" id="tLib">
+    <p class="hint">Llocs desats en <b>aquest navegador</b>: els pots crear i modificar sense estar connectat.
+      Quan et connectis, cada lloc té un botó per enviar-lo a la pantalla.</p>
+    <div id="libList"></div>
+    <button class="wide primary" onclick="libOpen(-1)">+ Lloc nou</button>
+    <button class="wide secondary conn" onclick="libPullFromDevice()">⬇ Copiar a la biblioteca els llocs del dispositiu</button>
+    <div style="display:flex; gap:6px; margin-top:6px;">
+      <button class="secondary" style="flex:1" onclick="libExport()">Exportar fitxer</button>
+      <label class="secondary btnlike" style="flex:1">Importar fitxer
+        <input type="file" accept=".json,application/json" hidden onchange="libImport(this)">
+      </label>
+    </div>
+
+    <div id="libEditor">
+      <h2 id="libTitle">Editar lloc</h2>
+      <div class="card"><input type="text" id="libName" placeholder="Nom del lloc (ex: Lima Arena Peru)"></div>
+      <div id="libCams"></div>
+      <div class="card camRow"><span>Backup 1</span><input type="text" id="libB0" inputmode="numeric"><span></span></div>
+      <div class="card camRow"><span>Backup 2</span><input type="text" id="libB1" inputmode="numeric"><span></span></div>
+      <h2>JIGA-Cam en aquest lloc</h2>
+      <div class="jiga" id="libJiga"></div>
+      <button class="wide primary" onclick="libEditorSave('lib')">Desar a la biblioteca</button>
+      <button class="wide send conn" onclick="libEditorSave('send')">Desar i enviar al dispositiu</button>
+      <button class="wide load conn" onclick="libEditorSave('show')">Desar, enviar i posar-lo a la pantalla</button>
+      <button class="wide secondary" onclick="libClose()">Cancel·lar</button>
+    </div>
   </div>
 
   <!-- ===== LLOCS ===== -->
   <div class="tab" id="tVenues">
+    <div class="card noconn">Connecta't per veure els llocs desats dins la pantalla.</div>
+    <div class="conn">
     <div id="venueList"></div>
     <button class="wide secondary" onclick="loadVenueList()">↻ Actualitzar llista</button>
     <button class="wide primary" onclick="newFromCurrent()">+ Desar la pantalla actual com a lloc nou</button>
@@ -105,10 +149,13 @@
       <button class="wide load" onclick="saveEditor(true)">Desar i posar-lo a la pantalla</button>
       <button class="wide secondary" onclick="closeEditor()">Cancel·lar</button>
     </div>
+    </div>
   </div>
 
   <!-- ===== SETTINGS ===== -->
   <div class="tab" id="tSettings">
+    <div class="card noconn">Connecta't per canviar els settings de la pantalla.</div>
+    <div class="conn">
     <div class="card settingRow">
       <span>Pantalla</span>
       <button class="toggle" id="invBtn" onclick="toggleInv()">Blanc/Negre</button>
@@ -117,6 +164,7 @@
     <div class="card">
       <input type="text" id="btName" maxlength="20" placeholder="Frequencies">
       <button class="wide primary" onclick="saveBtName()">Canviar nom (reinicia el dispositiu)</button>
+    </div>
     </div>
   </div>
 </div>
@@ -150,7 +198,7 @@ function flash(id) { const el = document.getElementById(id); if (!el) return; el
 function showTab(btn) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b === btn));
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === btn.dataset.tab));
-  if (btn.dataset.tab === 'tVenues' && venues.length === 0) loadVenueList();
+  if (btn.dataset.tab === 'tVenues' && venues.length === 0 && venueChar) loadVenueList();
 }
 
 // ---------- Connexió ----------
@@ -167,14 +215,17 @@ async function connect() {
     dataChar = await service.getCharacteristic(CHAR_DATA_UUID);
     venueChar = await service.getCharacteristic(CHAR_VENUE_UUID);
     device.addEventListener('gattserverdisconnected', () => {
-      setStatus('Desconnectat', '');
-      document.getElementById('app').style.display = 'none';
+      setStatus('Desconnectat — la Biblioteca segueix disponible', '');
+      document.body.classList.remove('connected');
+      dataChar = null; venueChar = null;
       btn.style.display = 'block'; btn.disabled = false;
     });
     await readGrid();
     setStatus('Connectat ✓', 'ok');
-    document.getElementById('app').style.display = 'block';
+    document.body.classList.add('connected');
     btn.style.display = 'none';
+    if (!document.querySelector('.tabs button.active[data-tab="tLib"]') || !document.getElementById('libEditor').offsetParent)
+      showTab(document.querySelector('.tabs button[data-tab="tNow"]'));
   } catch (e) {
     setStatus("No s'ha pogut connectar: " + e.message, 'err');
     btn.disabled = false;
@@ -355,13 +406,15 @@ function renderVenueList() {
   });
 }
 
-async function loadVenue(i) {
+async function loadVenue(i) { await loadOnDevice(i, venues[i] ? venues[i].name : ''); }
+
+async function loadOnDevice(idx, name) {
   try {
-    await write(venueChar, 'LOAD:' + i);
-    setStatus('Carregant "' + venues[i].name + '" a la pantalla...', 'ok');
+    await write(venueChar, 'LOAD:' + idx);
+    setStatus('Carregant "' + name + '" a la pantalla...', 'ok');
     await sleep(600);           // el dispositiu l'aplica des del loop
     await readGrid();
-    setStatus('"' + venues[i].name + '" a la pantalla ✓', 'ok');
+    setStatus('"' + name + '" a la pantalla ✓', 'ok');
   } catch (e) { setStatus('Error: ' + e.message, 'err'); }
 }
 
@@ -432,6 +485,198 @@ async function saveEditor(andLoad) {
     else setStatus('Lloc "' + name + '" desat ✓', 'ok');
   } catch (e) { setStatus('Error desant: ' + e.message, 'err'); }
 }
+
+// ---------- Biblioteca (localStorage, funciona sense connexió) ----------
+const LIB_KEY = 'freqLibrary_v1';
+const DEFAULT_CAMS = ['CAM2.Diego', 'CAM3.Merino', 'CAM4.Nachete', 'CAM5.Viko', 'CAM6.Steady'];
+let lib = [], libIdx = -1, libMask = 3;
+
+function libLoad() {
+  try { lib = JSON.parse(localStorage.getItem(LIB_KEY) || '[]'); if (!Array.isArray(lib)) lib = []; }
+  catch (e) { lib = []; }
+}
+function libStore() {
+  try { localStorage.setItem(LIB_KEY, JSON.stringify(lib)); return true; }
+  catch (e) { setStatus("El navegador no ha deixat desar: " + e.message, 'err'); return false; }
+}
+// Mateixa forma que parseVenue(): {name, cams:[{name,freq}], b:[b1,b2], j}
+function cleanVenue(v) {
+  const cams = [];
+  for (let k = 0; k < 5; k++) {
+    const c = (v.cams || [])[k] || {};
+    cams.push({ name: ascii(String(c.name || DEFAULT_CAMS[k])), freq: String(c.freq || '').trim() });
+  }
+  const b = v.b || ['', ''];
+  return { name: ascii(String(v.name || '')), cams, b: [String(b[0] || '').trim(), String(b[1] || '').trim()], j: (parseInt(v.j, 10) || 0) & 0xFF };
+}
+const sameVenue = (a, b) => JSON.stringify(cleanVenue(a)) === JSON.stringify(cleanVenue(b));
+
+function renderLib() {
+  const box = document.getElementById('libList');
+  box.innerHTML = '';
+  if (!lib.length) { box.innerHTML = '<div class="card noconn-free">Encara no hi ha cap lloc a la biblioteca.</div>'; return; }
+  lib.forEach((v, i) => {
+    const row = document.createElement('div');
+    row.className = 'card venue';
+    row.innerHTML = `<span class="vname"><span class="t"></span><span class="vsub"></span></span>
+      <button class="send conn">Enviar</button><button class="edit">Editar</button>
+      <button class="dup" title="Duplicar">⧉</button><button class="del">✕</button>`;
+    row.querySelector('.t').textContent = v.name;
+    row.querySelector('.vsub').textContent = v.cams.map(c => c.freq || '----').join(' · ');
+    row.querySelector('.send').onclick = () => libSendOne(i, true);
+    row.querySelector('.edit').onclick = () => libOpen(i);
+    row.querySelector('.dup').onclick = () => libOpen(-1, Object.assign(cleanVenue(lib[i]), { name: lib[i].name + ' 2' }));
+    row.querySelector('.del').onclick = () => {
+      if (!confirm('Esborrar "' + v.name + '" de la biblioteca?\n(No l\'esborra del dispositiu)')) return;
+      lib.splice(i, 1); libStore(); renderLib();
+    };
+    box.appendChild(row);
+  });
+}
+
+function libOpen(i, preset) {
+  libIdx = i;
+  const v = cleanVenue(preset || (i >= 0 ? lib[i] : { name: '', cams: DEFAULT_CAMS.map(n => ({ name: n, freq: '' })), b: ['', ''], j: 3 }));
+  document.getElementById('libTitle').textContent = i >= 0 ? 'Editar lloc' : 'Lloc nou';
+  document.getElementById('libName').value = v.name;
+  const box = document.getElementById('libCams');
+  box.innerHTML = '';
+  v.cams.forEach((c, k) => {
+    const row = document.createElement('div');
+    row.className = 'card camRow';
+    row.innerHTML = `<input type="text" id="libN${k}"><input type="text" id="libF${k}" inputmode="numeric"><span></span>`;
+    box.appendChild(row);
+    document.getElementById('libN' + k).value = c.name;
+    document.getElementById('libF' + k).value = c.freq;
+  });
+  document.getElementById('libB0').value = v.b[0];
+  document.getElementById('libB1').value = v.b[1];
+  libMask = v.j;
+  renderJiga('libJiga', libMask, toggleLibJiga);
+  document.getElementById('libEditor').style.display = 'block';
+  document.getElementById('libEditor').scrollIntoView({ behavior: 'smooth' });
+}
+function toggleLibJiga(k) { libMask ^= (1 << k); renderJiga('libJiga', libMask, toggleLibJiga); }
+function libClose() { document.getElementById('libEditor').style.display = 'none'; }
+
+function libReadEditor() {
+  const cams = [];
+  for (let k = 0; k < 5; k++) cams.push({ name: document.getElementById('libN' + k).value, freq: document.getElementById('libF' + k).value });
+  return cleanVenue({ name: document.getElementById('libName').value, cams,
+                      b: [document.getElementById('libB0').value, document.getElementById('libB1').value], j: libMask });
+}
+
+// Desa a la biblioteca. Torna el lloc desat, o null si s'ha cancel·lat.
+function libCommit() {
+  const v = libReadEditor();
+  if (!v.name) { alert('Posa un nom al lloc'); return null; }
+  const dup = lib.findIndex((x, k) => x.name === v.name && k !== libIdx);
+  if (dup >= 0) {
+    if (!confirm('A la biblioteca ja hi ha "' + v.name + '". Sobreescriure\'l?')) return null;
+    lib.splice(dup, 1);
+    if (dup < libIdx) libIdx--;
+  }
+  if (libIdx >= 0) lib[libIdx] = v; else { lib.push(v); libIdx = lib.length - 1; }
+  if (!libStore()) return null;
+  renderLib();
+  return v;
+}
+
+async function libEditorSave(mode) {
+  const v = libCommit();
+  if (!v) return;
+  if (mode === 'lib') { libClose(); setStatus('"' + v.name + '" desat a la biblioteca ✓', 'ok'); return; }
+  const idx = await pushVenueToDevice(v);
+  if (idx < 0) return;
+  libClose();
+  if (mode === 'show') await loadOnDevice(idx, v.name);
+}
+
+// Envia un lloc al dispositiu. Si allà ja n'hi ha un amb el mateix nom, el substitueix.
+async function pushVenueToDevice(v) {
+  if (!venueChar) { setStatus("Connecta't primer a la pantalla", 'err'); return -1; }
+  try {
+    setStatus('Enviant "' + v.name + '" al dispositiu...');
+    await write(venueChar, 'VB:-1');
+    await write(venueChar, 'VN:' + v.name);
+    for (let k = 0; k < 5; k++)
+      await write(venueChar, 'VC' + k + ':' + (v.cams[k].name || DEFAULT_CAMS[k]) + ',' + (v.cams[k].freq || '----'));
+    await write(venueChar, 'VK:' + (v.b[0] || '----') + ',' + (v.b[1] || '----'));
+    await write(venueChar, 'VJ:' + v.j);
+    await write(venueChar, 'VE');
+    const res = dec(await venueChar.readValue());
+    if (!res.startsWith('OK')) {
+      setStatus(res === 'ERR:ple' ? 'El dispositiu és ple (25 llocs): esborra\'n algun a la pestanya Dispositiu.'
+                                  : 'El dispositiu ha respost: ' + res, 'err');
+      return -1;
+    }
+    venues = [];               // la llista del dispositiu s'haurà de tornar a llegir
+    setStatus('"' + v.name + '" enviat al dispositiu ✓', 'ok');
+    return parseInt(res.substring(3), 10);
+  } catch (e) { setStatus('Error enviant: ' + e.message, 'err'); return -1; }
+}
+
+async function libSendOne(i, andShow) {
+  const v = cleanVenue(lib[i]);
+  const idx = await pushVenueToDevice(v);
+  if (idx >= 0 && andShow && confirm('"' + v.name + '" ja és al dispositiu. Posar-lo també a la pantalla ara?'))
+    await loadOnDevice(idx, v.name);
+}
+
+// Afegeix llocs a la biblioteca (del dispositiu o d'un fitxer)
+function libMerge(incoming, origin) {
+  incoming = incoming.map(cleanVenue).filter(v => v.name);
+  const clashes = incoming.filter(v => lib.some(x => x.name === v.name && !sameVenue(x, v))).length;
+  let overwrite = false;
+  if (clashes) overwrite = confirm(clashes + ' llocs ja són a la biblioteca amb dades diferents.\n\n' +
+    'Acceptar = quedar-te la versió ' + origin + '\nCancel·lar = quedar-te la de la biblioteca');
+  let added = 0, upd = 0;
+  incoming.forEach(v => {
+    const k = lib.findIndex(x => x.name === v.name);
+    if (k < 0) { lib.push(v); added++; }
+    else if (overwrite && !sameVenue(lib[k], v)) { lib[k] = v; upd++; }
+  });
+  libStore(); renderLib();
+  setStatus(added + ' llocs nous, ' + upd + ' actualitzats a la biblioteca ✓', 'ok');
+}
+
+async function libPullFromDevice() {
+  await loadVenueList();
+  if (!venues.length) { setStatus('El dispositiu no té cap lloc desat', ''); return; }
+  libMerge(venues, 'del dispositiu');
+}
+
+function libExport() {
+  if (!lib.length) { alert('La biblioteca és buida'); return; }
+  const data = JSON.stringify({ app: 'pantalla-frequencies', version: 1, venues: lib }, null, 2);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+  a.download = 'llocs-frequencies.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function libImport(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      const list = Array.isArray(d) ? d : d.venues;
+      if (!Array.isArray(list)) throw new Error('format desconegut');
+      libMerge(list, 'del fitxer');
+    } catch (e) { setStatus('No s\'ha pogut llegir el fitxer: ' + e.message, 'err'); }
+    input.value = '';
+  };
+  r.readAsText(f);
+}
+
+libLoad();
+renderLib();
+
+// Perquè la pàgina obri sense internet després de la primera visita (cal sw.js al costat)
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 // ---------- Pestanya Settings ----------
 function renderInv() { document.getElementById('invBtn').textContent = invert ? 'Negre/Blanc' : 'Blanc/Negre'; }
